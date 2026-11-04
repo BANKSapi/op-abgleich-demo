@@ -4,6 +4,12 @@ import { StatusBadge } from '../components/StatusBadge';
 import { PaymentDialog } from '../components/PaymentDialog';
 import { formatCents, formatDate } from '../format';
 
+const methodLabels: Record<string, string> = {
+  manuell: 'Manuell',
+  bankabgleich: 'Bankabgleich (automatisch)',
+  'bankabgleich-bestaetigt': 'Bankabgleich (bestätigt)',
+};
+
 export function InvoiceDetail({ id }: { id: number }) {
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +84,7 @@ export function InvoiceDetail({ id }: { id: number }) {
               {invoice.payments.map((p) => (
                 <tr key={p.id}>
                   <td>{formatDate(p.booked_on)}</td>
-                  <td>{p.method}</td>
+                  <td>{methodLabels[p.method] ?? p.method}</td>
                   <td>{p.note || '–'}</td>
                   <td className="num">{formatCents(p.amount_cents)}</td>
                   <td className="num">

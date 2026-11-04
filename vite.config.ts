@@ -6,7 +6,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:3001',
+      // xfwd: X-Forwarded-For setzen, damit die API die IP des Nutzers an BANKSapi weitergeben kann
+      '/api': { target: 'http://localhost:3001', xfwd: true },
     },
   },
 });

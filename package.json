@@ -17,6 +17,7 @@
     "test": "tsx --test server/*.test.ts"
   },
   "dependencies": {
+    "@banksapitechnology/regprotect-web-component": "1.15.4",
     "express": "^5.3.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

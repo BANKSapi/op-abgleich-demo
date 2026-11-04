@@ -2,6 +2,7 @@
  * Setzt die Datenbank auf Beispieldaten zurück: `npm run seed`
  * Datumswerte sind relativ zu heute, damit die Daten immer "frisch" aussehen.
  */
+import './env';
 import { db } from './db';
 import { today } from './domain';
 
@@ -38,7 +39,8 @@ const invoices: [string, number, number, number, string, [number, number][]][] =
   ['K-10006', -2, 30, 199_920, 'Messestand Bierbörse, Grafik', []],
 ];
 
-db.exec('DELETE FROM payments; DELETE FROM invoices; DELETE FROM customers;');
+// Bankverbindung (technischer BANKSapi-Nutzer) und Umsätze bleiben erhalten
+db.exec('DELETE FROM match_suggestions; DELETE FROM payments; DELETE FROM invoices; DELETE FROM customers;');
 
 const insertCustomer = db.prepare('INSERT INTO customers (customer_number, name, iban, email) VALUES (?, ?, ?, ?)');
 const customerIds = new Map<string, number>();

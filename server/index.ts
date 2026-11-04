@@ -1,11 +1,19 @@
+import './env';
 import express, { type Request, type Response, type NextFunction } from 'express';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { isIsoDate, parseAmount, type InvoiceStatus } from './domain';
 import * as repo from './repository';
+import { bankRouter } from './bank-routes';
+import { BanksapiError, hasUser, isConfigured } from './banksapi';
+import { runReconciliation } from './reconcile';
 
 const app = express();
+// Hinter dem Vite-Proxy bzw. einem lokalen Reverse-Proxy die echte Client-IP verwenden
+app.set('trust proxy', 'loopback');
 app.use(express.json());
+
+app.use('/api/bank', bankRouter);
 
 app.get('/api/summary', (_req, res) => {
   res.json(repo.summary());
@@ -107,6 +115,13 @@ if (process.env.NODE_ENV === 'production' && existsSync(dist)) {
 }
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof BanksapiError) {
+    console.error(`BANKSapi: ${err.message}`, err.body ?? '');
+    // Fehler der Gegenseite als 502 melden, eigene fachliche Fehler (4xx) durchreichen
+    const status = err.status >= 400 && err.status < 500 && !err.body ? err.status : 502;
+    res.status(status).json({ error: err.message });
+    return;
+  }
   console.error(err);
   res.status(500).json({ error: 'Interner Fehler' });
 });
@@ -115,3 +130,15 @@ const port = Number(process.env.PORT ?? 3001);
 app.listen(port, () => {
   console.log(`Kontor-API läuft auf http://localhost:${port}`);
 });
+
+// Regelmäßiger Abgleich im Hintergrund. BANKSapi aktualisiert verbundene Konten selbst bis zu 4× täglich.
+const intervalMinutes = Number(process.env.BANKSAPI_RECONCILE_INTERVAL_MINUTES ?? 360);
+if (isConfigured() && intervalMinutes > 0) {
+  setInterval(() => {
+    if (!hasUser()) return;
+    runReconciliation().then(
+      (r) => console.log(`Bankabgleich: ${r.booked} gebucht, ${r.suggested} Vorschläge, ${r.unmatched} ohne Treffer`),
+      (e: Error) => console.error(`Bankabgleich fehlgeschlagen: ${e.message}`),
+    );
+  }, intervalMinutes * 60_000).unref();
+}
