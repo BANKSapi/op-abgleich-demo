@@ -17,7 +17,7 @@ const customers = [
   ['K-10003', 'Kanzlei Berger & Partner', 'DE89370400440532013000', 'rechnungen@kanzlei-berger.example'],
   ['K-10004', 'Weber Elektrotechnik KG', 'DE02120300000000202051', 'office@weber-elektro.example'],
   ['K-10005', 'Praxis Dr. Sommer', 'DE75512108001245126199', 'verwaltung@praxis-sommer.example'],
-  ['K-10006', 'Brauhaus am Markt GmbH', 'DE21701500000000445566', 'einkauf@brauhaus-am-markt.example'],
+  ['K-10006', 'Brauhaus am Markt GmbH', 'DE20701500000012345678', 'einkauf@brauhaus-am-markt.example'],
   ['K-10007', 'Schreinerei Holzmann', null, 'holzmann@schreinerei.example'],
 ] as const;
 
@@ -32,6 +32,7 @@ const invoices: [string, number, number, number, string, [number, number][]][] =
   ['K-10001', -21, 14, 71_400, 'Anzeige Gartenmesse', []],
   ['K-10007', -18, 30, 113_050, 'Fotoshooting Werkstatt', []],
   ['K-10002', -12, 14, 23_800, 'Social-Media-Vorlagen', []],
+  ['K-10002', -10, 14, 11_900, 'Tischaufsteller', []],
   ['K-10003', -9, 30, 476_000, 'Relaunch Website, 2. Abschlag', []],
   ['K-10004', -5, 14, 41_650, 'Visitenkarten Nachdruck', []],
   ['K-10006', -2, 30, 199_920, 'Messestand Bierbörse, Grafik', []],
