@@ -10,7 +10,7 @@ Für den Expertenartikel auf banksapi.de: Wie einfach baut ein KI-Assistent eine
 | `run/opus-5.5-high-mcp`     | Claude Code | claude-opus-5-5   | high   | ja       |
 | `run/opus-5.5-high-ohne-mcp`| Claude Code | claude-opus-5-5   | high   | nein     |
 | `run/sonnet-5.5-high-mcp`   | Claude Code | claude-sonnet-5-5 | high   | ja       |
-| `run/codex-<modell>-mcp`    | Codex CLI   | Codex-Standard    | high   | ja       |
+| `run/codex-gpt-6.1-sol-high-mcp` | Codex CLI | gpt-6.1-sol (Codex-Standard) | high | ja |
 
 Alle Läufe bekommen denselben Prompt (`prompt.txt`), einmalig und ohne Rückfragen. Hört ein Lauf vor einem
 lauffähigen Stand auf, gibt es genau eine einheitliche Nachfrage: „Teste es und behebe Fehler.“
@@ -23,6 +23,7 @@ Jeder Lauf startet mit `./run.sh` in einem frischen Container (`docker/Dockerfil
 - leeres Home-Verzeichnis: keine CLAUDE.md/AGENTS.md, keine Memories, keine Plugins oder Skills vom Host
 - keine Umgebungsvariablen vom Host, nur der Modell-Login und die Sandbox-Zugangsdaten in `/workspace/.env`
 - MCP: ausschließlich `https://banksapi.io/docs-mcp` (`--strict-mcp-config`), im Kontrolllauf gar keiner
+- Codex: eigener ChatGPT-Login (separates CODEX_HOME), Workspace-Connectoren, Plugins und Memories abgeschaltet
 - Internet bleibt an (npm, BANKSapi-API); im Kontrolllauf darf das Modell also im Web suchen
 
 Nachweis: Das `init`-Ereignis am Anfang jedes Transkripts listet Tools und MCP-Server. Die Testläufe

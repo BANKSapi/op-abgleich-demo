@@ -69,21 +69,27 @@ case $AGENT in
     if ! $follow_up; then
       {
         echo "model_reasoning_effort = \"$EFFORT\""
+        # Keine Connectoren/Plugins aus dem ChatGPT-Workspace, keine Memories (wie bei Claude: nur der Docs MCP)
+        printf '\n[features]\napps = false\nplugins = false\nremote_plugin = false\nmemories = false\n'
         if [[ $MCP == mit ]]; then
           printf '\n[mcp_servers.banksapi-docs]\nurl = "https://banksapi.io/docs-mcp"\n'
         fi
       } > "$RUN/home/.codex/config.toml"
     fi
+    # Eigener ChatGPT-Login (codex login mit separatem CODEX_HOME), unabhängig vom Codex auf dem Host.
+    # Nach dem Lauf zurückkopieren, falls Codex die Tokens erneuert hat.
+    (umask 077; cp "$SECRETS/codex-auth.json" "$RUN/home/.codex/auth.json")
     model_args=""
     [[ $MODEL != standard ]] && model_args="-m $MODEL"
     sub="exec"
     $follow_up && sub="exec resume --last"
-    docker run --rm --name "op-$NAME" "${mounts[@]}" -e OPENAI_API_KEY "$IMAGE" bash -c '
-      printenv OPENAI_API_KEY | codex login --with-api-key >/dev/null 2>&1
-      unset OPENAI_API_KEY
+    docker run --rm --name "op-$NAME" "${mounts[@]}" "$IMAGE" bash -c '
       exec codex '"$sub"' --json --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check '"$model_args"' "$0"
     ' "$PROMPT" > "$OUT" 2>> "$RUN/stderr.log"
     status=$?
+    if [[ $RUN/home/.codex/auth.json -nt $SECRETS/codex-auth.json ]]; then
+      (umask 077; cp "$RUN/home/.codex/auth.json" "$SECRETS/codex-auth.json")
+    fi
     ;;
 esac
 set -e
