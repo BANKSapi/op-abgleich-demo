@@ -1,0 +1,1 @@
+Unsere Buchhaltungssoftware soll offene Posten automatisch mit den Zahlungseingängen auf dem Bankkonto abgleichen. Setze das mit BANKSapi um: Bankverbindung über die WEB/Connect Web Components, Zuordnung der Zahlungen mit AI/Connect. Die Zugangsdaten für unseren BANKSapi-Testmandanten stehen in .env.

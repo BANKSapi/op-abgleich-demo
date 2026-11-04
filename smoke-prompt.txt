@@ -1,0 +1,4 @@
+Ändere keine Dateien. Beantworte nur kurz:
+1. Welche Tools und welche MCP-Server stehen dir zur Verfügung?
+2. Hast du Anweisungsdateien (CLAUDE.md, AGENTS.md o. ä.) oder Erinnerungen/Memories aus früheren Sitzungen?
+3. Führe `ls -la ~ /workspace` und `env | cut -d= -f1 | sort` aus und fasse das Ergebnis zusammen.
