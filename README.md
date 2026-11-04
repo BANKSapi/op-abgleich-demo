@@ -39,6 +39,12 @@ Nachweis: Das `init`-Ereignis am Anfang jedes Transkripts listet Tools und MCP-S
 6. Sicherheit: Zugangsdaten nicht im Frontend, nicht im Repo, nicht im Log
 7. Aufwand: Dauer, Kosten/Tokens, Zahl der Nachfragen, Nutzung des Docs MCP
 
+## Auswertung
+
+Bankverbindung in der Auswertung: Demo Provider, Login `demo_buchhaltung` / `demo` (Geschäftskonto der Muster Design GmbH,
+passend zu den Beispieldaten in `server/seed.ts`; Mock-Nutzer im Scraper-Projekt seit 04.11.2026).
+Der Login steht bewusst nicht in der Baseline und nicht im Prompt.
+
 ## Starten
 
 ```bash
