@@ -1,0 +1,11 @@
+{
+  "name": "codex-gpt-6.1-sol-high-mcp",
+  "agent": "codex",
+  "model": "standard",
+  "mcp": "mit",
+  "effort": "high",
+  "transcript": "transcript.jsonl",
+  "started": "2026-11-04T16:12:36Z",
+  "finished": "2026-11-04T16:33:01Z",
+  "exit": 0
+}

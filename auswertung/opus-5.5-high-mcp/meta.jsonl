@@ -1,0 +1,11 @@
+{
+  "name": "opus-5.5-high-mcp",
+  "agent": "claude",
+  "model": "claude-opus-5-5",
+  "mcp": "mit",
+  "effort": "high",
+  "transcript": "transcript.jsonl",
+  "started": "2026-11-04T16:12:36Z",
+  "finished": "2026-11-04T16:24:33Z",
+  "exit": 0
+}
