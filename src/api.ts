@@ -41,6 +41,59 @@ export interface Summary {
   recent_payments: (Payment & { invoice_number: string; customer_name: string })[];
 }
 
+export interface BankAccess {
+  id: string;
+  status: string;
+  updated_at: string | null;
+  needs_consent: boolean;
+  messages: string[];
+  products: { id: string; name: string; iban: string | null; bank: string | null; owner: string | null; balance: number | null }[];
+}
+
+export interface BankRun {
+  finished_at: string;
+  invoices: number;
+  transactions: number;
+  booked: number;
+  proposed: number;
+  unmatched: number;
+}
+
+export interface BankStatus {
+  configured: boolean;
+  accesses: BankAccess[];
+  last_run: BankRun | null;
+}
+
+export interface ReconcileResult {
+  invoices: number;
+  transactions: number;
+  booked: { invoice_id: number; invoice_number: string; customer_name: string; booked_on: string; amount_cents: number; counterparty: string }[];
+  proposed: number;
+  unmatched: number;
+  warnings: string[];
+}
+
+export interface BankProposal {
+  id: number;
+  invoice_id: number;
+  invoice_number: string;
+  customer_name: string;
+  invoice_open_cents: number;
+  booked_on: string;
+  tx_cents: number;
+  book_cents: number;
+  counterparty: string;
+  purpose: string;
+  match_status: string;
+  match_type: string;
+  confidence: number;
+  notes: string[];
+}
+
+/** Entweder sofort erledigt oder der Nutzer muss den Vorgang in REG/Protect abschließen. */
+export type BankAction = { done: true } | { done: false; session_link: string };
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
@@ -67,4 +120,14 @@ export const api = {
     request<Payment>(`/api/invoices/${invoiceId}/payments`, { method: 'POST', body: JSON.stringify(data) }),
   deletePayment: (invoiceId: number, paymentId: number) =>
     request<void>(`/api/invoices/${invoiceId}/payments/${paymentId}`, { method: 'DELETE' }),
+
+  bankStatus: () => request<BankStatus>('/api/bank/status'),
+  bankConnect: () => request<{ session_link: string }>('/api/bank/connect', { method: 'POST' }),
+  bankRefresh: (accessId: string) => request<BankAction>(`/api/bank/accesses/${accessId}/refresh`, { method: 'POST' }),
+  bankConsent: (accessId: string) => request<BankAction>(`/api/bank/accesses/${accessId}/consent`, { method: 'POST' }),
+  bankDisconnect: (accessId: string) => request<void>(`/api/bank/accesses/${accessId}`, { method: 'DELETE' }),
+  bankReconcile: () => request<ReconcileResult>('/api/bank/reconcile', { method: 'POST' }),
+  bankProposals: () => request<BankProposal[]>('/api/bank/proposals'),
+  acceptProposal: (id: number) => request<void>(`/api/bank/proposals/${id}/accept`, { method: 'POST' }),
+  dismissProposal: (id: number) => request<void>(`/api/bank/proposals/${id}/dismiss`, { method: 'POST' }),
 };

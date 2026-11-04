@@ -353,3 +353,62 @@ select {
   padding: 24px;
   width: min(440px, 92vw);
 }
+
+.small {
+  font-size: 12px;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.purpose {
+  max-width: 340px;
+  overflow-wrap: anywhere;
+}
+
+.notice {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 0 0 20px;
+}
+
+.notice-error {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.panel-header h2 {
+  margin: 0;
+}
+
+.bank-access + .bank-access {
+  border-top: 1px solid var(--border);
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+.bank-access-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.bank-access-header .actions {
+  align-items: center;
+}
+
+.regprotect {
+  min-height: 480px;
+}
