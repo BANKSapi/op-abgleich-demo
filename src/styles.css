@@ -353,3 +353,24 @@ select {
   padding: 24px;
   width: min(440px, 92vw);
 }
+
+.notice {
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 10px 14px;
+  border-radius: 8px;
+}
+
+.warning-text {
+  color: var(--warning);
+  font-size: 13px;
+}
+
+.purpose {
+  max-width: 340px;
+  overflow-wrap: anywhere;
+}
+
+.regprotect {
+  min-height: 480px;
+}

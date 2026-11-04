@@ -1,8 +1,12 @@
+import './config';
 import express, { type Request, type Response, type NextFunction } from 'express';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { isIsoDate, parseAmount, type InvoiceStatus } from './domain';
 import * as repo from './repository';
+import { BanksapiError } from './banksapi';
+import { banksapiConfig } from './config';
+import { confirmSuggestion, reconcile, requireBanksapi } from './reconcile';
 
 const app = express();
 app.use(express.json());
@@ -99,6 +103,67 @@ app.delete('/api/invoices/:id/payments/:paymentId', (req, res) => {
   res.status(deleted ? 204 : 404).end();
 });
 
+// ---------- Bankanbindung (BANKSapi) ----------
+
+/** IP des Nutzers für den Header Customer-IP-Address (von Banken nach PSD2 verlangt); lokale Adressen sind wertlos. */
+function customerIp(req: Request): string | undefined {
+  const ip = req.ip?.replace(/^::ffff:/, '');
+  return !ip || ip === '::1' || ip.startsWith('127.') ? undefined : ip;
+}
+
+app.get('/api/bank/status', async (_req, res) => {
+  if (!banksapiConfig()) {
+    res.json({ configured: false, accesses: [], suggestions: [] });
+    return;
+  }
+  const accesses = await requireBanksapi().listAccesses();
+  res.json({
+    configured: true,
+    accesses: accesses.map((a) => ({
+      id: a.id,
+      status: a.status ?? null,
+      updated_at: a.aktualisierungszeitpunkt ?? null,
+      needs_sca: !!a.relations?.some((r) => r.rel === 'start_sca'),
+      messages: (a.messages ?? []).map((m) => m.message).filter(Boolean),
+      products: (a.bankprodukte ?? []).map((p) => ({
+        id: p.id,
+        iban: p.iban ?? p.id,
+        name: p.bezeichnung ?? '',
+        bank: p.kreditinstitut ?? '',
+        balance: p.saldo ?? null,
+      })),
+    })),
+    suggestions: repo.listSuggestions(),
+  });
+});
+
+// Startet REG/Protect; die Oberfläche bettet die Web Component mit dem Sitzungslink ein.
+app.post('/api/bank/connect', async (req, res) => {
+  const client = requireBanksapi();
+  const config = banksapiConfig()!;
+  const started = await client.startBankAccess(`${config.appBaseUrl}/`, customerIp(req));
+  res.json({ session_link: started.sessionLink, reentry_url: `${config.appBaseUrl}/?bankReentry=1` });
+});
+
+app.post('/api/bank/accesses/:id/renew', async (req, res) => {
+  const client = requireBanksapi();
+  const config = banksapiConfig()!;
+  const link = await client.startConsentRenewal(String(req.params.id), `${config.appBaseUrl}/`, customerIp(req));
+  res.json({ session_link: link, reentry_url: `${config.appBaseUrl}/?bankReentry=1` });
+});
+
+app.post('/api/bank/reconcile', async (req, res) => {
+  res.json(await reconcile({ refresh: req.body?.refresh === true, customerIp: customerIp(req) }));
+});
+
+app.post('/api/bank/suggestions/:id/confirm', (req, res) => {
+  res.status(201).json(confirmSuggestion(Number(req.params.id)));
+});
+
+app.post('/api/bank/suggestions/:id/reject', (req, res) => {
+  res.status(repo.rejectSuggestion(Number(req.params.id)) ? 204 : 404).end();
+});
+
 // Im Produktivbetrieb liefert die API auch das gebaute Frontend aus
 const dist = resolve('dist');
 if (process.env.NODE_ENV === 'production' && existsSync(dist)) {
@@ -107,6 +172,13 @@ if (process.env.NODE_ENV === 'production' && existsSync(dist)) {
 }
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof BanksapiError) {
+    console.error(`[BANKSapi] ${err.message}`);
+    // Eigene Hinweise (409/503/…) unverändert weitergeben, Fehler der Gegenseite als 502
+    const own = [403, 404, 409, 503].includes(err.status);
+    res.status(own ? err.status : 502).json({ error: err.message });
+    return;
+  }
   console.error(err);
   res.status(500).json({ error: 'Interner Fehler' });
 });

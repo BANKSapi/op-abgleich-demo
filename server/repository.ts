@@ -17,6 +17,27 @@ export interface Payment {
   method: string;
   note: string;
   created_at: string;
+  bank_product_id: string | null;
+  bank_transaction_id: string | null;
+}
+
+export interface Suggestion {
+  id: number;
+  invoice_id: number;
+  invoice_number: string;
+  customer_name: string;
+  open_cents: number;
+  state: 'vorgeschlagen' | 'abgelehnt';
+  match_status: string;
+  match_type: string;
+  confidence: number;
+  notes: string;
+  product_id: string;
+  transaction_id: string;
+  booked_on: string;
+  amount_cents: number;
+  counterparty: string;
+  purpose: string;
 }
 
 const invoiceSelect = `
@@ -85,11 +106,28 @@ export function createInvoice(input: {
 
 export function addPayment(
   invoiceId: number,
-  input: { booked_on: string; amount_cents: number; method?: string; note?: string },
+  input: {
+    booked_on: string;
+    amount_cents: number;
+    method?: string;
+    note?: string;
+    bank_product_id?: string;
+    bank_transaction_id?: string;
+  },
 ): Payment {
   const result = db
-    .prepare('INSERT INTO payments (invoice_id, booked_on, amount_cents, method, note) VALUES (?, ?, ?, ?, ?)')
-    .run(invoiceId, input.booked_on, input.amount_cents, input.method ?? 'manuell', input.note ?? '');
+    .prepare(
+      'INSERT INTO payments (invoice_id, booked_on, amount_cents, method, note, bank_product_id, bank_transaction_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run(
+      invoiceId,
+      input.booked_on,
+      input.amount_cents,
+      input.method ?? 'manuell',
+      input.note ?? '',
+      input.bank_product_id ?? null,
+      input.bank_transaction_id ?? null,
+    );
   return db.prepare('SELECT * FROM payments WHERE id = ?').get(result.lastInsertRowid) as unknown as Payment;
 }
 
@@ -115,4 +153,99 @@ export function summary() {
     overdue_cents: overdue.reduce((sum, i) => sum + i.open_cents, 0),
     recent_payments: recentPayments,
   };
+}
+
+// ---------- Bankabgleich ----------
+
+/** Bereits verbuchte Bankumsätze; AI/Connect soll sie nicht erneut zuordnen. */
+export function bookedBankTransactions(): { id: string; productId: string }[] {
+  return db
+    .prepare('SELECT bank_transaction_id AS id, bank_product_id AS productId FROM payments WHERE bank_transaction_id IS NOT NULL')
+    .all() as unknown as { id: string; productId: string }[];
+}
+
+export function isBankTransactionBooked(productId: string, transactionId: string): boolean {
+  return !!db
+    .prepare('SELECT 1 FROM payments WHERE bank_product_id = ? AND bank_transaction_id = ?')
+    .get(productId, transactionId);
+}
+
+export function listCustomerIbans(): Map<number, string | null> {
+  const rows = db.prepare('SELECT id, iban FROM customers').all() as unknown as { id: number; iban: string | null }[];
+  return new Map(rows.map((r) => [r.id, r.iban]));
+}
+
+const suggestionSelect = `
+  SELECT s.*, i.number AS invoice_number, c.name AS customer_name,
+         MAX(i.amount_cents - COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.invoice_id = i.id), 0), 0) AS open_cents
+  FROM bank_suggestions s
+  JOIN invoices i ON i.id = s.invoice_id
+  JOIN customers c ON c.id = i.customer_id
+`;
+
+export function listSuggestions(): Suggestion[] {
+  return db
+    .prepare(`${suggestionSelect} WHERE s.state = 'vorgeschlagen' ORDER BY s.confidence DESC, s.booked_on DESC`)
+    .all() as unknown as Suggestion[];
+}
+
+export function getSuggestion(id: number): Suggestion | undefined {
+  return db.prepare(`${suggestionSelect} WHERE s.id = ?`).get(id) as unknown as Suggestion | undefined;
+}
+
+export function isRejected(invoiceId: number, productId: string, transactionId: string): boolean {
+  return !!db
+    .prepare("SELECT 1 FROM bank_suggestions WHERE invoice_id = ? AND product_id = ? AND transaction_id = ? AND state = 'abgelehnt'")
+    .get(invoiceId, productId, transactionId);
+}
+
+/** Offene Vorschläge werden bei jedem Abgleich neu berechnet; abgelehnte bleiben erhalten. */
+export function clearOpenSuggestions(): void {
+  db.prepare("DELETE FROM bank_suggestions WHERE state = 'vorgeschlagen'").run();
+}
+
+export function saveSuggestion(s: Omit<Suggestion, 'id' | 'invoice_number' | 'customer_name' | 'open_cents' | 'state'>): void {
+  db.prepare(
+    `INSERT OR IGNORE INTO bank_suggestions
+       (invoice_id, product_id, transaction_id, match_status, match_type, confidence, notes, booked_on, amount_cents, counterparty, purpose)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    s.invoice_id, s.product_id, s.transaction_id, s.match_status, s.match_type, s.confidence,
+    s.notes, s.booked_on, s.amount_cents, s.counterparty, s.purpose,
+  );
+}
+
+export function rejectSuggestion(id: number): boolean {
+  return db.prepare("UPDATE bank_suggestions SET state = 'abgelehnt' WHERE id = ? AND state = 'vorgeschlagen'").run(id).changes > 0;
+}
+
+export function deleteSuggestion(id: number): void {
+  db.prepare('DELETE FROM bank_suggestions WHERE id = ?').run(id);
+}
+
+/** Verbucht einen Bankumsatz atomar und räumt Vorschläge zum selben Umsatz auf. */
+export function bookBankPayment(
+  invoiceId: number,
+  input: { booked_on: string; amount_cents: number; note: string; product_id: string; transaction_id: string },
+): Payment {
+  db.exec('BEGIN');
+  try {
+    const payment = addPayment(invoiceId, {
+      booked_on: input.booked_on,
+      amount_cents: input.amount_cents,
+      method: 'bank',
+      note: input.note,
+      bank_product_id: input.product_id,
+      bank_transaction_id: input.transaction_id,
+    });
+    db.prepare("DELETE FROM bank_suggestions WHERE product_id = ? AND transaction_id = ? AND state = 'vorgeschlagen'").run(
+      input.product_id,
+      input.transaction_id,
+    );
+    db.exec('COMMIT');
+    return payment;
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
 }

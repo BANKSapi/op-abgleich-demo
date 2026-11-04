@@ -41,6 +41,58 @@ export interface Summary {
   recent_payments: (Payment & { invoice_number: string; customer_name: string })[];
 }
 
+export interface BankProduct {
+  id: string;
+  iban: string;
+  name: string;
+  bank: string;
+  balance: number | null;
+}
+
+export interface BankAccess {
+  id: string;
+  status: string | null;
+  updated_at: string | null;
+  needs_sca: boolean;
+  messages: string[];
+  products: BankProduct[];
+}
+
+export interface Suggestion {
+  id: number;
+  invoice_id: number;
+  invoice_number: string;
+  customer_name: string;
+  open_cents: number;
+  match_status: string;
+  match_type: string;
+  confidence: number;
+  notes: string;
+  booked_on: string;
+  amount_cents: number;
+  counterparty: string;
+  purpose: string;
+}
+
+export interface BankStatus {
+  configured: boolean;
+  accesses: BankAccess[];
+  suggestions: Suggestion[];
+}
+
+export interface ReconcileResult {
+  booked: number;
+  suggested: number;
+  unmatched: number;
+  needs_sca: string[];
+  checked_invoices: number;
+}
+
+export interface RegprotectSession {
+  session_link: string;
+  reentry_url: string;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
@@ -65,6 +117,13 @@ export const api = {
     request<Invoice>('/api/invoices', { method: 'POST', body: JSON.stringify(data) }),
   addPayment: (invoiceId: number, data: { booked_on: string; amount: string; note: string }) =>
     request<Payment>(`/api/invoices/${invoiceId}/payments`, { method: 'POST', body: JSON.stringify(data) }),
+  bankStatus: () => request<BankStatus>('/api/bank/status'),
+  bankConnect: () => request<RegprotectSession>('/api/bank/connect', { method: 'POST' }),
+  bankRenew: (accessId: string) => request<RegprotectSession>(`/api/bank/accesses/${accessId}/renew`, { method: 'POST' }),
+  bankReconcile: (refresh: boolean) =>
+    request<ReconcileResult>('/api/bank/reconcile', { method: 'POST', body: JSON.stringify({ refresh }) }),
+  confirmSuggestion: (id: number) => request<Payment>(`/api/bank/suggestions/${id}/confirm`, { method: 'POST' }),
+  rejectSuggestion: (id: number) => request<void>(`/api/bank/suggestions/${id}/reject`, { method: 'POST' }),
   deletePayment: (invoiceId: number, paymentId: number) =>
     request<void>(`/api/invoices/${invoiceId}/payments/${paymentId}`, { method: 'DELETE' }),
 };

@@ -78,7 +78,7 @@ export function InvoiceDetail({ id }: { id: number }) {
               {invoice.payments.map((p) => (
                 <tr key={p.id}>
                   <td>{formatDate(p.booked_on)}</td>
-                  <td>{p.method}</td>
+                  <td>{p.method === 'bank' ? 'Bankabgleich' : 'Manuell'}</td>
                   <td>{p.note || '–'}</td>
                   <td className="num">{formatCents(p.amount_cents)}</td>
                   <td className="num">
