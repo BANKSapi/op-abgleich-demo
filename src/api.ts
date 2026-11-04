@@ -41,6 +41,37 @@ export interface Summary {
   recent_payments: (Payment & { invoice_number: string; customer_name: string })[];
 }
 
+export interface BankTransaction {
+  id: number;
+  product_id: string;
+  transaction_id: string;
+  booked_on: string;
+  amount_cents: number;
+  currency: string;
+  counterparty: string;
+  purpose: string;
+}
+
+export interface BankingState {
+  configured: boolean;
+  initialized: boolean;
+  last_run: { status: string; started_at: string; finished_at: string | null; booked_count: number; error: string | null } | null;
+  results: {
+    invoice: Invoice;
+    status: string;
+    candidates: {
+      confidence: number;
+      matchType: string;
+      delta: number;
+      notes?: string[];
+      signals: Record<string, unknown>;
+      bank_transaction: BankTransaction | null;
+      available: boolean;
+    }[];
+  }[];
+  history: (BankTransaction & { source: string; payment_id: number | null; invoice_id: number | null; invoice_number: string | null; created_at: string })[];
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
@@ -54,6 +85,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  banking: () => request<BankingState>('/api/banking'),
+  bankingSession: (refresh = false) => request<{ token: string; expiresAt: number }>('/api/banking/session', { method: 'POST', body: JSON.stringify({ refresh }) }),
+  reconcile: () => request<{ booked_count: number; checked_count: number }>('/api/banking/reconcile', { method: 'POST' }),
+  assignBankPayment: (invoice_id: number, transaction_id: number) => request<void>('/api/banking/assign', { method: 'POST', body: JSON.stringify({ invoice_id, transaction_id }) }),
+  ignoreBankTransaction: (transaction_id: number) => request<void>('/api/banking/ignore', { method: 'POST', body: JSON.stringify({ transaction_id }) }),
   summary: () => request<Summary>('/api/summary'),
   customers: () => request<Customer[]>('/api/customers'),
   createCustomer: (data: { name: string; iban?: string; email?: string }) =>

@@ -23,4 +23,5 @@ test('Datumsformat', () => {
   assert.ok(isIsoDate('2026-11-04'));
   assert.ok(!isIsoDate('04.11.2026'));
   assert.ok(!isIsoDate(20261104));
+  assert.ok(!isIsoDate('2026-02-31'));
 });

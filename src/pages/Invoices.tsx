@@ -47,6 +47,7 @@ export function Invoices() {
         </div>
         <span className="muted">Summe offen: {formatCents(totalOpen)}</span>
       </div>
+      <p className="muted"><a href="#/bankabgleich">Zahlungseingänge automatisch über das Bankkonto abgleichen →</a></p>
 
       <section className="panel">
         {!invoices ? (

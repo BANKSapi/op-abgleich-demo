@@ -38,7 +38,7 @@ const invoices: [string, number, number, number, string, [number, number][]][] =
   ['K-10006', -2, 30, 199_920, 'Messestand Bierbörse, Grafik', []],
 ];
 
-db.exec('DELETE FROM payments; DELETE FROM invoices; DELETE FROM customers;');
+db.exec('DELETE FROM bank_allocations; DELETE FROM reconciliation_results; DELETE FROM reconciliation_runs; DELETE FROM bank_transactions; DELETE FROM payments; DELETE FROM invoices; DELETE FROM customers;');
 
 const insertCustomer = db.prepare('INSERT INTO customers (customer_number, name, iban, email) VALUES (?, ?, ?, ?)');
 const customerIds = new Map<string, number>();

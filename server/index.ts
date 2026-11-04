@@ -3,9 +3,16 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { isIsoDate, parseAmount, type InvoiceStatus } from './domain';
 import * as repo from './repository';
+import { bankingRouter } from './banking-routes';
+import { BankingError } from './banksapi';
+import { startReconciliationSchedule } from './reconciliation';
 
 const app = express();
 app.use(express.json());
+app.use('/api/banking', bankingRouter);
+// Gepinnte WEB/Connect-Pakete lokal ausliefern, einschließlich der dynamischen EFC-Module.
+app.use('/banking-widgets/efc', express.static(resolve('node_modules/@banksapitechnology/embeddable-finance-web-components/dist')));
+app.use('/banking-widgets/regprotect', express.static(resolve('node_modules/@banksapitechnology/regprotect-web-component/dist')));
 
 app.get('/api/summary', (_req, res) => {
   res.json(repo.summary());
@@ -107,6 +114,10 @@ if (process.env.NODE_ENV === 'production' && existsSync(dist)) {
 }
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof BankingError) {
+    res.status(err.status).json({ error: err.message });
+    return;
+  }
   console.error(err);
   res.status(500).json({ error: 'Interner Fehler' });
 });
@@ -115,3 +126,4 @@ const port = Number(process.env.PORT ?? 3001);
 app.listen(port, () => {
   console.log(`Kontor-API läuft auf http://localhost:${port}`);
 });
+startReconciliationSchedule();

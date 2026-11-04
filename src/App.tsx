@@ -4,10 +4,11 @@ import { Invoices } from './pages/Invoices';
 import { InvoiceDetail } from './pages/InvoiceDetail';
 import { InvoiceForm } from './pages/InvoiceForm';
 import { Customers } from './pages/Customers';
+import { Banking } from './pages/Banking';
 
 /** Einfaches Hash-Routing: #/, #/rechnungen, #/rechnungen/neu, #/rechnungen/12, #/kunden */
 function useRoute() {
-  const [hash, setHash] = useState(() => window.location.hash || '#/');
+  const [hash, setHash] = useState(() => /[?&]banking(?:Reentry|Callback)=/.test(window.location.search) ? '#/bankabgleich' : window.location.hash || '#/');
   useEffect(() => {
     const onChange = () => setHash(window.location.hash || '#/');
     window.addEventListener('hashchange', onChange);
@@ -20,6 +21,7 @@ const nav = [
   { href: '#/', label: 'Übersicht', match: (r: string) => r === '/' },
   { href: '#/rechnungen', label: 'Offene Posten', match: (r: string) => r.startsWith('/rechnungen') },
   { href: '#/kunden', label: 'Kunden', match: (r: string) => r.startsWith('/kunden') },
+  { href: '#/bankabgleich', label: 'Bankabgleich', match: (r: string) => r.startsWith('/bankabgleich') },
 ];
 
 export function App() {
@@ -31,6 +33,7 @@ export function App() {
   else if (detail) page = <InvoiceDetail id={Number(detail[1])} />;
   else if (route.startsWith('/rechnungen')) page = <Invoices />;
   else if (route.startsWith('/kunden')) page = <Customers />;
+  else if (route.startsWith('/bankabgleich')) page = <Banking />;
   else page = <Dashboard />;
 
   return (
