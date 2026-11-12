@@ -1,12 +1,17 @@
 /**
  * Setzt die Datenbank auf Beispieldaten zurück: `npm run seed`
- * Datumswerte sind relativ zu heute, damit die Daten immer "frisch" aussehen.
+ *
+ * Datumswerte zählen vom Stichtag aus, dem Ersten des laufenden Monats. Das passt zum Demo-Geschäftskonto
+ * „demo_buchhaltung" beim BANKSapi Demo Provider, dessen Umsätze vom selben Stichtag aus datiert sind und die
+ * Rechnungsnummern RE-<Jahr>-<MM><NN> tragen (z. B. RE-2026-1107 im November 2026).
  */
 import { db } from './db';
 import { today } from './domain';
 
-function daysFromToday(days: number): string {
-  const d = new Date(`${today()}T12:00:00`);
+const stichtag = `${today().slice(0, 7)}-01`;
+
+function daysFromStichtag(days: number): string {
+  const d = new Date(`${stichtag}T12:00:00`);
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
 }
@@ -21,7 +26,7 @@ const customers = [
   ['K-10007', 'Schreinerei Holzmann', null, 'holzmann@schreinerei.example'],
 ] as const;
 
-// [Kunde, Rechnungsdatum (Tage ab heute), Zahlungsziel (Tage), Betrag in Cent, Beschreibung, Zahlungen [Tage ab heute, Cent]]
+// [Kunde, Rechnungsdatum (Tage ab Stichtag), Zahlungsziel (Tage), Betrag in Cent, Beschreibung, Zahlungen [Tage ab Stichtag, Cent]]
 const invoices: [string, number, number, number, string, [number, number][]][] = [
   ['K-10001', -75, 14, 238_000, 'Gestaltung Firmenbroschüre', [[-58, 238_000]]],
   ['K-10002', -62, 14, 59_500, 'Speisekarten Herbst, Satz und Druckvorbereitung', [[-50, 59_500]]],
@@ -50,15 +55,15 @@ const insertInvoice = db.prepare(
   'INSERT INTO invoices (number, customer_id, issue_date, due_date, amount_cents, description) VALUES (?, ?, ?, ?, ?, ?)',
 );
 const insertPayment = db.prepare('INSERT INTO payments (invoice_id, booked_on, amount_cents, note) VALUES (?, ?, ?, ?)');
-const year = today().slice(0, 4);
+const [year, month] = stichtag.split('-');
 invoices.forEach(([customer, issued, term, amount, description, payments], index) => {
-  const number = `RE-${year}-${String(index + 101).padStart(4, '0')}`;
+  const number = `RE-${year}-${month}${String(index + 1).padStart(2, '0')}`;
   const invoiceId = Number(
-    insertInvoice.run(number, customerIds.get(customer)!, daysFromToday(issued), daysFromToday(issued + term), amount, description)
+    insertInvoice.run(number, customerIds.get(customer)!, daysFromStichtag(issued), daysFromStichtag(issued + term), amount, description)
       .lastInsertRowid,
   );
   for (const [booked, cents] of payments) {
-    insertPayment.run(invoiceId, daysFromToday(booked), cents, 'Kontoauszug geprüft');
+    insertPayment.run(invoiceId, daysFromStichtag(booked), cents, 'Kontoauszug geprüft');
   }
 });
 
